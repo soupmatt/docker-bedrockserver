@@ -5,6 +5,8 @@
 # for a list of version numbers.
 FROM phusion/baseimage:0.11
 
+ARG DOWNLOAD_URL=https://minecraft.azureedge.net/bin-linux/bedrock-server-1.11.2.1.zip
+
 # Use baseimage-docker's init system.
 CMD ["/sbin/my_init"]
 
@@ -14,24 +16,25 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN useradd -ms /bin/bash bedrock
+RUN curl ${DOWNLOAD_URL} --output bedrock-server.zip && \
+    unzip bedrock-server.zip -d /srv/bedrock_server && \
+    rm bedrock-server.zip
 
-WORKDIR /home/bedrock
+WORKDIR /srv/bedrock_server
 
 # Copy the startup script
 COPY ./startup.sh .
 
 RUN chmod +x startup.sh \
-    && mkdir -p bedrock_server/worlds \
-    && mkdir -p bedrock_server/config \
-    && chown -R bedrock:bedrock .
+    && mkdir -p /srv/bedrock_server/worlds \
+    && mkdir -p /srv/bedrock_server/config \
+    && cp server.properties server.properties.defaults
 
-# If you enable the USER below, there will be permission issues with shared volumes
-USER bedrock
+ENV LD_LIBRARY_PATH=.
 
 # create volumes for settings that need to be persisted.
-VOLUME /home/bedrock/bedrock_server/worlds /home/bedrock/bedrock_server/config
+VOLUME /srv/bedrock_server/worlds /srv/bedrock_server/config
 
 EXPOSE 19132/udp 19133/udp
 
-ENTRYPOINT /home/bedrock/startup.sh
+ENTRYPOINT ./startup.sh
